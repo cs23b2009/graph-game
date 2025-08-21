@@ -12,7 +12,7 @@ const app = express();
 app.use(
   cors({
     origin: process.env.NODE_ENV === 'production' 
-      ? "https://your-frontend-app-name.onrender.com" 
+      ? "https://graph-game-frontend.onrender.com" 
       : "http://localhost:3001",
   })
 );
