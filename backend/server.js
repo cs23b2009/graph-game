@@ -1,584 +1,570 @@
-<<<<<<< HEAD
-// Enhanced server.js with debugging for MongoDB connection issues
+import React, { useState, useEffect } from "react";
+import {
+  Trophy,
+  User,
+  Mail,
+  RotateCcw,
+  Home,
+  Crown,
+  Medal,
+  Award,
+} from "lucide-react";
 
-=======
->>>>>>> f1e3da14 (updated finnaly)
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const bcrypt = require("bcryptjs"); // Note: This is not used in the current version, but it's okay to keep.
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
+const GraphSeasonGame = () => {
+  const initialGrid = [3, 6, 4, 2, 5, 8, 1, 7, 9];
+  const targetGrid = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-const app = express();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [isLoginMode, setIsLoginMode] = useState(false); // New state for login/register
+  const [grid, setGrid] = useState([...initialGrid]);
+  const [moves, setMoves] = useState(0);
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [gameWon, setGameWon] = useState(false);
+  const [authForm, setAuthForm] = useState({ name: "", email: "" });
+  const [authError, setAuthError] = useState("");
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState("");
 
-// Middleware
-app.use(
-  cors({
-<<<<<<< HEAD
-    origin: process.env.NODE_ENV === 'production' 
-      ? "https://graph-game-frontend.onrender.com" 
-=======
-    origin: process.env.NODE_ENV === 'production'
-      ? "https://graph-game-frontend.onrender.com"
->>>>>>> f1e3da14 (updated finnaly)
-      : ["http://localhost:3001", "http://localhost:3000"], // Allow both ports
-  })
-);
-app.use(express.json());
+  const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5009/api";
 
-// Enhanced MongoDB Connection with better error handling
-mongoose.connect(
-  process.env.MONGODB_URI || "mongodb://localhost:27017/graph_season_game",
-  {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  }
-);
+  useEffect(() => {
+    fetchLeaderboard();
+  }, []);
 
-const db = mongoose.connection;
-
-// Enhanced connection event handlers
-db.on("error", (error) => {
-  console.error("❌ MongoDB connection error:", error);
-});
-
-db.once("open", function () {
-  console.log("✅ Connected to MongoDB successfully");
-  console.log("📍 Database:", db.name);
-  console.log("🔗 Host:", db.host);
-  console.log("🔌 Port:", db.port);
-});
-
-db.on("disconnected", () => {
-  console.log("⚠️  MongoDB disconnected");
-});
-
-db.on("reconnected", () => {
-  console.log("🔄 MongoDB reconnected");
-});
-
-// User Schema (unchanged)
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 2,
-      maxlength: 50,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      validate: {
-        validator: function (email) {
-          const pattern = /^[a-zA-Z]{2}\d{2}[a-zA-Z]{1}\d{4}@iiitdm\.ac\.in$/;
-          return pattern.test(email);
+  // API Functions
+  const fetchLeaderboard = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/leaderboard`);
+      const data = await response.json();
+      setLeaderboard(data.leaderboard || []);
+    } catch (error) {
+      console.error("Failed to fetch leaderboard:", error);
+      // Fallback to sample data if API fails
+      setLeaderboard([
+        {
+          name: "Alice Kumar",
+          email: "cs22b1001@iiitdm.ac.in",
+          moves: 12,
+          date: "2024-03-15",
+          rank: 1,
         },
-        message: "Email must match IIITDM format: cs23b2007@iiitdm.ac.in",
-      },
-    },
-    registeredAt: {
-      type: Date,
-      default: Date.now,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-// Score Schema (unchanged)
-const scoreSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    moves: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
-    completedAt: {
-      type: Date,
-      default: Date.now,
-    },
-    gameConfiguration: {
-      type: [Number],
-      default: [3, 6, 4, 2, 5, 8, 1, 7, 9],
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-const User = mongoose.model("User", userSchema);
-const Score = mongoose.model("Score", scoreSchema);
-
-// Enhanced JWT middleware with better error handling
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  console.log("🔐 Auth header:", authHeader);
-  console.log("🎟️  Token:", token ? "Present" : "Missing");
-
-  if (!token) {
-    return res.status(401).json({ error: "Access token required" });
-  }
-
-  jwt.verify(
-    token,
-    process.env.JWT_SECRET || "your-secret-key",
-    (err, user) => {
-      if (err) {
-        console.error("❌ JWT verification error:", err.message);
-        return res.status(403).json({ error: "Invalid token" });
-      }
-      console.log("✅ JWT verified for user:", user.userId);
-      req.user = user;
-      next();
+        {
+          name: "Bob Sharma",
+          email: "me21a2002@iiitdm.ac.in",
+          moves: 15,
+          date: "2024-03-14",
+          rank: 2,
+        },
+        {
+          name: "Carol Singh",
+          email: "ec23b3003@iiitdm.ac.in",
+          moves: 18,
+          date: "2024-03-13",
+          rank: 3,
+        },
+        {
+          name: "David Patel",
+          email: "cs22a4004@iiitdm.ac.in",
+          moves: 20,
+          date: "2024-03-12",
+          rank: 4,
+        },
+        {
+          name: "Eva Reddy",
+          email: "me23c5005@iiitdm.ac.in",
+          moves: 22,
+          date: "2024-03-11",
+          rank: 5,
+        },
+      ]);
     }
+  };
+
+  const submitScore = async (finalMoves) => {
+    if (!currentUser) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/scores`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser.token}`,
+        },
+        body: JSON.stringify({ moves: finalMoves }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setSubmitSuccess(data.message);
+        await fetchLeaderboard(); // Refresh leaderboard
+      } else {
+        console.error("Failed to submit score:", data.error);
+        setSubmitSuccess("Score saved locally");
+      }
+    } catch (error) {
+      console.error("Error submitting score:", error);
+      setSubmitSuccess("Score saved locally");
+    }
+  };
+
+  const validateEmail = (email) => {
+    const pattern = /^[a-zA-Z]{2}\d{2}[a-zA-Z]{1}\d{4}@iiitdm\.ac\.in$/;
+    return pattern.test(email);
+  };
+
+  const handleAuth = async () => {
+    setAuthError("");
+    setLoading(true);
+
+    if (!validateEmail(authForm.email)) {
+      setAuthError("Email must match format: cs23b2007@iiitdm.ac.in");
+      setLoading(false);
+      return;
+    }
+
+    // Only require name for registration
+    if (!isLoginMode && !authForm.name.trim()) {
+      setAuthError("Name is required for registration");
+      setLoading(false);
+      return;
+    }
+
+    const endpoint = isLoginMode ? "login" : "register";
+    const body = isLoginMode
+      ? { email: authForm.email.toLowerCase() }
+      : { name: authForm.name.trim(), email: authForm.email.toLowerCase() };
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const userWithToken = { ...data.user, token: data.token };
+        setCurrentUser(userWithToken);
+        setShowAuth(false);
+        setAuthForm({ name: "", email: "" });
+        await fetchLeaderboard();
+      } else {
+        setAuthError(data.error || "Authentication failed");
+      }
+    } catch (error) {
+      console.error("Authentication error:", error);
+      setAuthError("Network error. Using offline mode.");
+      // Fallback for offline mode
+      const newUser = {
+        name: authForm.name.trim() || "Guest",
+        email: authForm.email.toLowerCase(),
+        token: "offline-token",
+      };
+      setCurrentUser(newUser);
+      setShowAuth(false);
+      setAuthForm({ name: "", email: "" });
+    }
+
+    setLoading(false);
+  };
+
+  const isAdjacent = (index1, index2) => {
+    const row1 = Math.floor(index1 / 3);
+    const col1 = index1 % 3;
+    const row2 = Math.floor(index2 / 3);
+    const col2 = index2 % 3;
+
+    return (
+      (Math.abs(row1 - row2) === 1 && col1 === col2) ||
+      (Math.abs(col1 - col2) === 1 && row1 === row2)
+    );
+  };
+
+  const handleSquareClick = async (index) => {
+    if (gameWon) return;
+
+    if (selectedSquare === null) {
+      setSelectedSquare(index);
+    } else if (selectedSquare === index) {
+      setSelectedSquare(null);
+    } else if (isAdjacent(selectedSquare, index)) {
+      const newGrid = [...grid];
+      [newGrid[selectedSquare], newGrid[index]] = [
+        newGrid[index],
+        newGrid[selectedSquare],
+      ];
+      setGrid(newGrid);
+      setMoves(moves + 1);
+      setSelectedSquare(null);
+
+      if (JSON.stringify(newGrid) === JSON.stringify(targetGrid)) {
+        setGameWon(true);
+        setSubmitSuccess("");
+        if (currentUser) {
+          await submitScore(moves + 1);
+        }
+      }
+    } else {
+      setSelectedSquare(index);
+    }
+  };
+
+  const resetGame = () => {
+    setGrid([...initialGrid]);
+    setMoves(0);
+    setSelectedSquare(null);
+    setGameWon(false);
+    setSubmitSuccess("");
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+  };
+
+  const getRankIcon = (rank) => {
+    if (rank === 1) return <Crown className="w-5 h-5 text-yellow-500" />;
+    if (rank === 2) return <Medal className="w-5 h-5 text-gray-400" />;
+    if (rank === 3) return <Award className="w-5 h-5 text-amber-600" />;
+    return (
+      <span className="w-5 h-5 flex items-center justify-center text-sm font-bold text-gray-600">
+        #{rank}
+      </span>
+    );
+  };
+
+  if (showLeaderboard) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                <Trophy className="w-8 h-8 text-yellow-500" />
+                Leaderboard
+              </h1>
+              <button
+                onClick={() => setShowLeaderboard(false)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <Home className="w-4 h-4" />
+                Back to Game
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {leaderboard.map((player, index) => (
+                <div
+                  key={player.email || index}
+                  className={`p-4 rounded-xl border-2 flex items-center justify-between ${
+                    index < 3
+                      ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50"
+                      : "border-gray-200 bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    {getRankIcon(player.rank || index + 1)}
+                    <div>
+                      <h3 className="font-semibold text-gray-800">
+                        {player.name}
+                      </h3>
+                      <p className="text-sm text-gray-600">{player.email}</p>
+                      <p className="text-xs text-gray-500">
+                        Completed: {player.date}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {player.moves}
+                    </p>
+                    <p className="text-sm text-gray-500">moves</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+            {isLoginMode ? "Log In to Play" : "Join the Game"}
+          </h2>
+          <div className="space-y-4">
+            {!isLoginMode && (
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4" />
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={authForm.name}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, name: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <Mail className="w-4 h-4" />
+                IIITDM Email
+              </label>
+              <input
+                type="email"
+                value={authForm.email}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, email: e.target.value })
+                }
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-colors"
+                placeholder="cs23b2007@iiitdm.ac.in"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Format: 2 letters + 2 digits + 1 letter + 4 digits
+              </p>
+            </div>
+
+            {authError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {authError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAuth(false)}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAuth}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
+              >
+                {loading ? "Loading..." : isLoginMode ? "Log In" : "Register"}
+              </button>
+            </div>
+            <p className="text-center text-sm text-gray-600 mt-4">
+              {isLoginMode
+                ? "Don't have an account? "
+                : "Already have an account? "}
+              <button
+                onClick={() => {
+                  setIsLoginMode(!isLoginMode);
+                  setAuthError("");
+                }}
+                className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+              >
+                {isLoginMode ? "Register" : "Log In"}
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+            Graph Season Game
+          </h1>
+          {currentUser ? (
+            <div className="flex items-center justify-center gap-4">
+              <p className="text-lg text-gray-600">
+                Welcome,{" "}
+                <span className="font-semibold">{currentUser.name}</span>!
+              </p>
+              <button
+                onClick={logout}
+                className="text-sm px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <p className="text-lg text-gray-600">
+              Arrange numbers 1-9 in order with minimum moves
+            </p>
+          )}
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Game Board */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl shadow-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-blue-600">{moves}</p>
+                    <p className="text-sm text-gray-500">Moves</p>
+                  </div>
+                  {gameWon && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg">
+                      <Trophy className="w-4 h-4" />
+                      Completed!
+                    </div>
+                  )}
+                  {submitSuccess && (
+                    <div className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm">
+                      {submitSuccess}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={resetGame}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto mb-6">
+                {grid.map((number, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSquareClick(index)}
+                    className={`
+                      aspect-square text-2xl font-bold rounded-xl border-2 transition-all duration-200 transform hover:scale-105
+                      ${
+                        selectedSquare === index
+                          ? "border-blue-500 bg-blue-100 text-blue-800 shadow-lg"
+                          : gameWon
+                          ? "border-green-300 bg-green-50 text-green-800"
+                          : "border-gray-300 bg-white text-gray-800 hover:border-blue-300 hover:shadow-md"
+                      }
+                    `}
+                  >
+                    {number}
+                  </button>
+                ))}
+              </div>
+
+              {!currentUser && (
+                <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-800 mb-2">
+                    Register to submit your score!
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowAuth(true);
+                      setIsLoginMode(false); // Default to register
+                    }}
+                    className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+                  >
+                    Register Now
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Game Info & Actions */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-2xl p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">
+                Game Rules
+              </h3>
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>
+                  🎯 <strong>Goal:</strong> Arrange numbers 1-9 in order
+                </p>
+                <p>
+                  🔄 <strong>How to play:</strong> Click two adjacent squares to
+                  swap
+                </p>
+                <p>
+                  📊 <strong>Adjacent means:</strong> Horizontally or vertically
+                  next to each other
+                </p>
+                <p>
+                  🏆 <strong>Objective:</strong> Complete in minimum moves
+                  possible
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-2xl p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-yellow-500" />
+                Top Players
+              </h3>
+              <div className="space-y-2">
+                {leaderboard.slice(0, 3).map((player, index) => (
+                  <div
+                    key={player.email || index}
+                    className="flex items-center justify-between p-2 rounded-lg bg-gray-50"
+                  >
+                    <div className="flex items-center gap-2">
+                      {getRankIcon(player.rank || index + 1)}
+                      <div>
+                        <p className="font-medium text-sm text-gray-800">
+                          {player.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {player.moves} moves
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowLeaderboard(true)}
+                className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                View Full Leaderboard
+              </button>
+            </div>
+
+            {!currentUser && (
+              <div className="bg-white rounded-2xl shadow-2xl p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-3">
+                  Join the Competition
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Register with your IIITDM email to compete on the leaderboard!
+                </p>
+                <button
+                  onClick={() => {
+                    setShowAuth(true);
+                    setIsLoginMode(false);
+                  }}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium"
+                >
+                  Register to Play
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
-// Routes
-
-// User Registration (unchanged but with logging)
-app.post("/api/auth/register", async (req, res) => {
-  try {
-    console.log("📝 Registration attempt:", req.body);
-    
-    const { name, email } = req.body;
-
-    if (!name || !email) {
-      return res.status(400).json({ error: "Name and email are required" });
-    }
-
-    if (name.trim().length < 2) {
-      return res
-        .status(400)
-        .json({ error: "Name must be at least 2 characters long" });
-    }
-
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      console.log("❌ User already exists:", email);
-      return res.status(400).json({ error: "Email already registered" });
-    }
-
-    const user = new User({
-      name: name.trim(),
-      email: email.toLowerCase(),
-    });
-
-    await user.save();
-    console.log("✅ User created:", user._id);
-
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "7d" }
-    );
-
-    res.status(201).json({
-      message: "User registered successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
-      token,
-    });
-  } catch (error) {
-    console.error("❌ Registration error:", error);
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ error: error.message });
-    }
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Enhanced Login with logging
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    console.log("🔑 Login attempt:", req.body);
-    
-<<<<<<< HEAD
-    const { email } = req.body;
-=======
-    const { email, name } = req.body;
->>>>>>> f1e3da14 (updated finnaly)
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-<<<<<<< HEAD
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      console.log("❌ User not found:", email);
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    console.log("✅ User found:", user._id);
-
-=======
-    // Validate email format (same as registration)
-    const iiitdmPattern = /^[a-zA-Z]{2}\d{2}[a-zA-Z]{1}\d{4}@iiitdm\.ac\.in$/;
-    if (!iiitdmPattern.test(email)) {
-      return res.status(400).json({ error: "Email must match IIITDM format: cs23b2007@iiitdm.ac.in" });
-    }
-
-    let user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      console.log("👤 User not found, creating on login:", email);
-      // Derive a reasonable default name from email if not provided
-      const defaultName = (email.split("@")[0] || "Player")
-        .replace(/[._-]+/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .replace(/\b\w/g, (c) => c.toUpperCase()) || "Player";
-      const nameToUse = (typeof name === "string" && name.trim().length >= 2) ? name.trim() : defaultName;
-
-      user = new User({
-        name: nameToUse,
-        email: email.toLowerCase(),
-      });
-      await user.save();
-      console.log("✅ User created via login:", user._id);
-    } else {
-      console.log("✅ User found:", user._id);
-    }
-
->>>>>>> f1e3da14 (updated finnaly)
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "7d" }
-    );
-
-    res.json({
-      message: "Login successful",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
-      token,
-    });
-  } catch (error) {
-    console.error("❌ Login error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// ENHANCED Submit Score with extensive debugging
-app.post("/api/scores", authenticateToken, async (req, res) => {
-  try {
-    console.log("🎯 Score submission started");
-    console.log("👤 User ID:", req.user.userId);
-    console.log("📊 Request body:", req.body);
-    
-    const { moves } = req.body;
-
-    if (!moves || moves < 1) {
-      console.log("❌ Invalid moves value:", moves);
-      return res.status(400).json({ error: "Valid moves count is required" });
-    }
-
-    console.log("🔍 Looking for existing score for user:", req.user.userId);
-    
-    // Check if user exists first
-    const user = await User.findById(req.user.userId);
-    if (!user) {
-      console.log("❌ User not found in database:", req.user.userId);
-      return res.status(404).json({ error: "User not found" });
-    }
-    console.log("✅ User verified:", user.name);
-
-    // Check existing score
-    const existingScore = await Score.findOne({ userId: req.user.userId });
-    console.log("🔍 Existing score found:", existingScore ? 
-      `${existingScore.moves} moves` : "No existing score");
-
-    if (existingScore) {
-      if (moves < existingScore.moves) {
-        console.log("🎉 New best score! Updating...");
-        console.log(`📈 Old: ${existingScore.moves} → New: ${moves}`);
-        
-        existingScore.moves = moves;
-        existingScore.completedAt = new Date();
-        
-        const savedScore = await existingScore.save();
-        console.log("✅ Score updated successfully:", savedScore);
-
-        res.json({
-          message: "New best score updated!",
-          score: {
-            moves: savedScore.moves,
-            completedAt: savedScore.completedAt,
-            improved: true,
-          },
-        });
-      } else {
-        console.log("📊 Score not improved");
-        res.json({
-          message: "Score submitted, but not your best",
-          score: {
-            moves: existingScore.moves,
-            completedAt: existingScore.completedAt,
-            improved: false,
-          },
-        });
-      }
-    } else {
-      console.log("🆕 Creating new score record...");
-      
-      const score = new Score({
-        userId: req.user.userId,
-        moves: moves,
-      });
-
-      console.log("💾 Saving new score:", score);
-      const savedScore = await score.save();
-      console.log("✅ New score saved successfully:", savedScore);
-
-      res.status(201).json({
-        message: "Score submitted successfully!",
-        score: {
-          moves: savedScore.moves,
-          completedAt: savedScore.completedAt,
-          improved: true,
-        },
-      });
-    }
-  } catch (error) {
-    console.error("❌ Score submission error:", error);
-    console.error("Stack trace:", error.stack);
-    res.status(500).json({ 
-      error: "Internal server error",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-// Enhanced Leaderboard with logging
-app.get("/api/leaderboard", async (req, res) => {
-  try {
-    console.log("🏆 Leaderboard request");
-    
-    const limit = parseInt(req.query.limit) || 50;
-    const page = parseInt(req.query.page) || 1;
-    const skip = (page - 1) * limit;
-
-    console.log(`📄 Pagination: page ${page}, limit ${limit}, skip ${skip}`);
-
-    const leaderboard = await Score.aggregate([
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "user",
-        },
-      },
-      {
-        $unwind: "$user",
-      },
-      {
-        $sort: {
-          moves: 1,
-          completedAt: 1,
-        },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: limit,
-      },
-      {
-        $project: {
-          _id: 1,
-          moves: 1,
-          completedAt: 1,
-          "user.name": 1,
-          "user.email": 1,
-        },
-      },
-    ]);
-
-    console.log(`🏆 Found ${leaderboard.length} leaderboard entries`);
-
-    const rankedLeaderboard = leaderboard.map((entry, index) => ({
-      rank: skip + index + 1,
-      name: entry.user.name,
-      email: entry.user.email,
-      moves: entry.moves,
-      completedAt: entry.completedAt,
-      date: entry.completedAt.toISOString().split("T")[0],
-    }));
-
-    const totalScores = await Score.countDocuments();
-    console.log(`📊 Total scores in database: ${totalScores}`);
-
-    res.json({
-      leaderboard: rankedLeaderboard,
-      pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(totalScores / limit),
-        totalScores,
-        hasNext: page * limit < totalScores,
-        hasPrev: page > 1,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Leaderboard error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Enhanced User Score endpoint
-app.get("/api/user/score", authenticateToken, async (req, res) => {
-  try {
-    console.log("🔍 Getting user score for:", req.user.userId);
-    
-    const score = await Score.findOne({ userId: req.user.userId });
-
-    if (!score) {
-      console.log("❌ No score found for user");
-      return res.json({ hasScore: false });
-    }
-
-    console.log("✅ Score found:", score.moves, "moves");
-
-    const betterScores = await Score.countDocuments({
-      $or: [
-        { moves: { $lt: score.moves } },
-        { moves: score.moves, completedAt: { $lt: score.completedAt } },
-      ],
-    });
-
-    const rank = betterScores + 1;
-    console.log("🏆 User rank:", rank);
-
-    res.json({
-      hasScore: true,
-      score: {
-        moves: score.moves,
-        completedAt: score.completedAt,
-        rank: rank,
-      },
-    });
-  } catch (error) {
-    console.error("❌ User score error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Debug endpoint to check database status
-app.get("/api/debug", authenticateToken, async (req, res) => {
-  try {
-    const userCount = await User.countDocuments();
-    const scoreCount = await Score.countDocuments();
-    const userScores = await Score.find({ userId: req.user.userId });
-    
-    res.json({
-      database: {
-        connected: mongoose.connection.readyState === 1,
-        name: mongoose.connection.name,
-        host: mongoose.connection.host,
-        port: mongoose.connection.port,
-      },
-      collections: {
-        users: userCount,
-        scores: scoreCount,
-      },
-      currentUser: {
-        id: req.user.userId,
-        scores: userScores,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Debug error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Get Game Statistics (unchanged)
-app.get("/api/stats", async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments();
-    const totalScores = await Score.countDocuments();
-
-    const stats = await Score.aggregate([
-      {
-        $group: {
-          _id: null,
-          averageMoves: { $avg: "$moves" },
-          minMoves: { $min: "$moves" },
-          maxMoves: { $max: "$moves" },
-        },
-      },
-    ]);
-
-    const gameStats = stats[0] || { averageMoves: 0, minMoves: 0, maxMoves: 0 };
-
-    res.json({
-      totalUsers,
-      totalScores,
-      averageMoves: Math.round(gameStats.averageMoves * 10) / 10,
-      bestScore: gameStats.minMoves,
-      worstScore: gameStats.maxMoves,
-      completionRate:
-        totalUsers > 0 ? Math.round((totalScores / totalUsers) * 100) : 0,
-    });
-  } catch (error) {
-    console.error("Stats error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Health Check (unchanged)
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-  });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error("❌ Unhandled error:", err.stack);
-  res.status(500).json({ error: "Something went wrong!" });
-});
-
-// 404 handler
-app.use((req, res) => {
-  console.log("❌ Route not found:", req.method, req.url);
-  res.status(404).json({ error: "Route not found" });
-});
-
-const PORT = process.env.PORT || 5009;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔑 JWT Secret: ${process.env.JWT_SECRET ? 'Set' : 'Using default'}`);
-  console.log(`🗄️  MongoDB URI: ${process.env.MONGODB_URI || 'Using default'}`);
-});
-
-<<<<<<< HEAD
-module.exports = app;
-=======
-module.exports = app;
->>>>>>> f1e3da14 (updated finnaly)
+export default GraphSeasonGame;
