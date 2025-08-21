@@ -1,4 +1,5 @@
-// server.js - Main Express Server
+// Enhanced server.js with debugging for MongoDB connection issues
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -13,14 +14,14 @@ app.use(
   cors({
     origin: process.env.NODE_ENV === 'production' 
       ? "https://graph-game-frontend.onrender.com" 
-      : "http://localhost:3001",
+      : ["http://localhost:3001", "http://localhost:3000"], // Allow both ports
   })
 );
 app.use(express.json());
 
-// MongoDB Connection
+// Enhanced MongoDB Connection with better error handling
 mongoose.connect(
-  process.env.MONGODB_URI ,
+  process.env.MONGODB_URI || "mongodb://localhost:27017/graph_season_game",
   {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -28,12 +29,28 @@ mongoose.connect(
 );
 
 const db = mongoose.connection;
-db.on("error", console.error.bind(console, "connection error:"));
-db.once("open", function () {
-  console.log("Connected to MongoDB");
+
+// Enhanced connection event handlers
+db.on("error", (error) => {
+  console.error("❌ MongoDB connection error:", error);
 });
 
-// User Schema
+db.once("open", function () {
+  console.log("✅ Connected to MongoDB successfully");
+  console.log("📍 Database:", db.name);
+  console.log("🔗 Host:", db.host);
+  console.log("🔌 Port:", db.port);
+});
+
+db.on("disconnected", () => {
+  console.log("⚠️  MongoDB disconnected");
+});
+
+db.on("reconnected", () => {
+  console.log("🔄 MongoDB reconnected");
+});
+
+// User Schema (unchanged)
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -50,7 +67,6 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       validate: {
         validator: function (email) {
-          // Validate IIITDM email format: 2 letters + 2 digits + 1 letter + 4 digits
           const pattern = /^[a-zA-Z]{2}\d{2}[a-zA-Z]{1}\d{4}@iiitdm\.ac\.in$/;
           return pattern.test(email);
         },
@@ -67,7 +83,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Score Schema
+// Score Schema (unchanged)
 const scoreSchema = new mongoose.Schema(
   {
     userId: {
@@ -86,7 +102,7 @@ const scoreSchema = new mongoose.Schema(
     },
     gameConfiguration: {
       type: [Number],
-      default: [3, 6, 4, 2, 5, 8, 1, 7, 9], // Starting grid
+      default: [3, 6, 4, 2, 5, 8, 1, 7, 9],
     },
   },
   {
@@ -97,10 +113,13 @@ const scoreSchema = new mongoose.Schema(
 const User = mongoose.model("User", userSchema);
 const Score = mongoose.model("Score", scoreSchema);
 
-// Middleware to verify JWT token
+// Enhanced JWT middleware with better error handling
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
+
+  console.log("🔐 Auth header:", authHeader);
+  console.log("🎟️  Token:", token ? "Present" : "Missing");
 
   if (!token) {
     return res.status(401).json({ error: "Access token required" });
@@ -108,11 +127,13 @@ const authenticateToken = (req, res, next) => {
 
   jwt.verify(
     token,
-    process.env.JWT_SECRET ,
+    process.env.JWT_SECRET || "your-secret-key",
     (err, user) => {
       if (err) {
+        console.error("❌ JWT verification error:", err.message);
         return res.status(403).json({ error: "Invalid token" });
       }
+      console.log("✅ JWT verified for user:", user.userId);
       req.user = user;
       next();
     }
@@ -121,12 +142,13 @@ const authenticateToken = (req, res, next) => {
 
 // Routes
 
-// User Registration
+// User Registration (unchanged but with logging)
 app.post("/api/auth/register", async (req, res) => {
   try {
+    console.log("📝 Registration attempt:", req.body);
+    
     const { name, email } = req.body;
 
-    // Validate input
     if (!name || !email) {
       return res.status(400).json({ error: "Name and email are required" });
     }
@@ -137,21 +159,20 @@ app.post("/api/auth/register", async (req, res) => {
         .json({ error: "Name must be at least 2 characters long" });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
+      console.log("❌ User already exists:", email);
       return res.status(400).json({ error: "Email already registered" });
     }
 
-    // Create new user
     const user = new User({
       name: name.trim(),
       email: email.toLowerCase(),
     });
 
     await user.save();
+    console.log("✅ User created:", user._id);
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET || "your-secret-key",
@@ -168,17 +189,19 @@ app.post("/api/auth/register", async (req, res) => {
       token,
     });
   } catch (error) {
+    console.error("❌ Registration error:", error);
     if (error.name === "ValidationError") {
       return res.status(400).json({ error: error.message });
     }
-    console.error("Registration error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// User Login (if needed)
+// Enhanced Login with logging
 app.post("/api/auth/login", async (req, res) => {
   try {
+    console.log("🔑 Login attempt:", req.body);
+    
     const { email } = req.body;
 
     if (!email) {
@@ -187,10 +210,12 @@ app.post("/api/auth/login", async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
+      console.log("❌ User not found:", email);
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Generate JWT token
+    console.log("✅ User found:", user._id);
+
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET || "your-secret-key",
@@ -207,39 +232,61 @@ app.post("/api/auth/login", async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("❌ Login error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Submit Score
+// ENHANCED Submit Score with extensive debugging
 app.post("/api/scores", authenticateToken, async (req, res) => {
   try {
+    console.log("🎯 Score submission started");
+    console.log("👤 User ID:", req.user.userId);
+    console.log("📊 Request body:", req.body);
+    
     const { moves } = req.body;
 
     if (!moves || moves < 1) {
+      console.log("❌ Invalid moves value:", moves);
       return res.status(400).json({ error: "Valid moves count is required" });
     }
 
-    // Check if user already has a score, update if better
+    console.log("🔍 Looking for existing score for user:", req.user.userId);
+    
+    // Check if user exists first
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      console.log("❌ User not found in database:", req.user.userId);
+      return res.status(404).json({ error: "User not found" });
+    }
+    console.log("✅ User verified:", user.name);
+
+    // Check existing score
     const existingScore = await Score.findOne({ userId: req.user.userId });
+    console.log("🔍 Existing score found:", existingScore ? 
+      `${existingScore.moves} moves` : "No existing score");
 
     if (existingScore) {
-      // Only update if new score is better (fewer moves)
       if (moves < existingScore.moves) {
+        console.log("🎉 New best score! Updating...");
+        console.log(`📈 Old: ${existingScore.moves} → New: ${moves}`);
+        
         existingScore.moves = moves;
         existingScore.completedAt = new Date();
-        await existingScore.save();
+        
+        const savedScore = await existingScore.save();
+        console.log("✅ Score updated successfully:", savedScore);
 
         res.json({
           message: "New best score updated!",
           score: {
-            moves: existingScore.moves,
-            completedAt: existingScore.completedAt,
+            moves: savedScore.moves,
+            completedAt: savedScore.completedAt,
             improved: true,
           },
         });
       } else {
+        console.log("📊 Score not improved");
         res.json({
           message: "Score submitted, but not your best",
           score: {
@@ -250,35 +297,46 @@ app.post("/api/scores", authenticateToken, async (req, res) => {
         });
       }
     } else {
-      // Create new score
+      console.log("🆕 Creating new score record...");
+      
       const score = new Score({
         userId: req.user.userId,
-        moves,
+        moves: moves,
       });
 
-      await score.save();
+      console.log("💾 Saving new score:", score);
+      const savedScore = await score.save();
+      console.log("✅ New score saved successfully:", savedScore);
 
       res.status(201).json({
         message: "Score submitted successfully!",
         score: {
-          moves: score.moves,
-          completedAt: score.completedAt,
+          moves: savedScore.moves,
+          completedAt: savedScore.completedAt,
           improved: true,
         },
       });
     }
   } catch (error) {
-    console.error("Score submission error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Score submission error:", error);
+    console.error("Stack trace:", error.stack);
+    res.status(500).json({ 
+      error: "Internal server error",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
-// Get Leaderboard
+// Enhanced Leaderboard with logging
 app.get("/api/leaderboard", async (req, res) => {
   try {
+    console.log("🏆 Leaderboard request");
+    
     const limit = parseInt(req.query.limit) || 50;
     const page = parseInt(req.query.page) || 1;
     const skip = (page - 1) * limit;
+
+    console.log(`📄 Pagination: page ${page}, limit ${limit}, skip ${skip}`);
 
     const leaderboard = await Score.aggregate([
       {
@@ -294,8 +352,8 @@ app.get("/api/leaderboard", async (req, res) => {
       },
       {
         $sort: {
-          moves: 1, // Sort by moves ascending (fewer moves = better rank)
-          completedAt: 1, // If tied, earlier completion wins
+          moves: 1,
+          completedAt: 1,
         },
       },
       {
@@ -315,7 +373,8 @@ app.get("/api/leaderboard", async (req, res) => {
       },
     ]);
 
-    // Add rank numbers
+    console.log(`🏆 Found ${leaderboard.length} leaderboard entries`);
+
     const rankedLeaderboard = leaderboard.map((entry, index) => ({
       rank: skip + index + 1,
       name: entry.user.name,
@@ -326,6 +385,7 @@ app.get("/api/leaderboard", async (req, res) => {
     }));
 
     const totalScores = await Score.countDocuments();
+    console.log(`📊 Total scores in database: ${totalScores}`);
 
     res.json({
       leaderboard: rankedLeaderboard,
@@ -338,21 +398,25 @@ app.get("/api/leaderboard", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Leaderboard error:", error);
+    console.error("❌ Leaderboard error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Get User's Best Score
+// Enhanced User Score endpoint
 app.get("/api/user/score", authenticateToken, async (req, res) => {
   try {
+    console.log("🔍 Getting user score for:", req.user.userId);
+    
     const score = await Score.findOne({ userId: req.user.userId });
 
     if (!score) {
+      console.log("❌ No score found for user");
       return res.json({ hasScore: false });
     }
 
-    // Get user's rank
+    console.log("✅ Score found:", score.moves, "moves");
+
     const betterScores = await Score.countDocuments({
       $or: [
         { moves: { $lt: score.moves } },
@@ -360,21 +424,53 @@ app.get("/api/user/score", authenticateToken, async (req, res) => {
       ],
     });
 
+    const rank = betterScores + 1;
+    console.log("🏆 User rank:", rank);
+
     res.json({
       hasScore: true,
       score: {
         moves: score.moves,
         completedAt: score.completedAt,
-        rank: betterScores + 1,
+        rank: rank,
       },
     });
   } catch (error) {
-    console.error("User score error:", error);
+    console.error("❌ User score error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Get Game Statistics
+// Debug endpoint to check database status
+app.get("/api/debug", authenticateToken, async (req, res) => {
+  try {
+    const userCount = await User.countDocuments();
+    const scoreCount = await Score.countDocuments();
+    const userScores = await Score.find({ userId: req.user.userId });
+    
+    res.json({
+      database: {
+        connected: mongoose.connection.readyState === 1,
+        name: mongoose.connection.name,
+        host: mongoose.connection.host,
+        port: mongoose.connection.port,
+      },
+      collections: {
+        users: userCount,
+        scores: scoreCount,
+      },
+      currentUser: {
+        id: req.user.userId,
+        scores: userScores,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Debug error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get Game Statistics (unchanged)
 app.get("/api/stats", async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
@@ -408,187 +504,35 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// Health Check
+// Health Check (unchanged)
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("❌ Unhandled error:", err.stack);
   res.status(500).json({ error: "Something went wrong!" });
 });
 
 // 404 handler
 app.use((req, res) => {
+  console.log("❌ Route not found:", req.method, req.url);
   res.status(404).json({ error: "Route not found" });
 });
 
 const PORT = process.env.PORT || 5009;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔑 JWT Secret: ${process.env.JWT_SECRET ? 'Set' : 'Using default'}`);
+  console.log(`🗄️  MongoDB URI: ${process.env.MONGODB_URI || 'Using default'}`);
 });
 
 module.exports = app;
-
-// ===========================
-// package.json
-// ===========================
-/*
-{
-  "name": "graph-season-game-backend",
-  "version": "1.0.0",
-  "description": "Backend API for Graph Season Game",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "test": "jest",
-    "seed": "node scripts/seedData.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.5.0",
-    "cors": "^2.8.5",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "dotenv": "^16.3.1",
-    "helmet": "^7.0.0",
-    "express-rate-limit": "^6.10.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1",
-    "jest": "^29.6.4",
-    "supertest": "^6.3.3"
-  },
-  "keywords": ["game", "puzzle", "leaderboard", "mern", "mongodb"],
-  "author": "Your Name",
-  "license": "MIT"
-}
-*/
-
-// ===========================
-// .env (Environment Variables)
-// ===========================
-/*
-# Database
-MONGODB_URI=mongodb://localhost:27017/graph_season_game
-# For production: mongodb+srv://username:password@cluster.mongodb.net/graph_season_game
-
-# JWT Secret (use a strong random string in production)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# CORS Settings (optional)
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
-*/
-
-// ===========================
-// scripts/seedData.js - Sample Data Seeder
-// ===========================
-/*
-const mongoose = require('mongoose');
-require('dotenv').config();
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/graph_season_game');
-
-// Import models (you'll need to adjust paths)
-const User = require('../models/User'); // If you split models into separate files
-const Score = require('../models/Score');
-
-const seedData = async () => {
-  try {
-    // Clear existing data
-    await User.deleteMany({});
-    await Score.deleteMany({});
-
-    // Create sample users
-    const users = [
-      { name: 'Alice Kumar', email: 'cs22b1001@iiitdm.ac.in' },
-      { name: 'Bob Sharma', email: 'me21a2002@iiitdm.ac.in' },
-      { name: 'Carol Singh', email: 'ec23b3003@iiitdm.ac.in' },
-      { name: 'David Patel', email: 'cs22a4004@iiitdm.ac.in' },
-      { name: 'Eva Reddy', email: 'me23c5005@iiitdm.ac.in' }
-    ];
-
-    const createdUsers = await User.insertMany(users);
-
-    // Create sample scores
-    const scores = [
-      { userId: createdUsers[0]._id, moves: 12 },
-      { userId: createdUsers[1]._id, moves: 15 },
-      { userId: createdUsers[2]._id, moves: 18 },
-      { userId: createdUsers[3]._id, moves: 20 },
-      { userId: createdUsers[4]._id, moves: 22 }
-    ];
-
-    await Score.insertMany(scores);
-
-    console.log('Sample data seeded successfully!');
-    process.exit(0);
-
-  } catch (error) {
-    console.error('Seeding error:', error);
-    process.exit(1);
-  }
-};
-
-seedData();
-*/
-
-// ===========================
-// API Documentation
-// ===========================
-/*
-# Graph Season Game API Documentation
-
-## Base URL
-`http://localhost:5000/api`
-
-## Authentication
-Most endpoints require a JWT token in the Authorization header:
-`Authorization: Bearer <token>`
-
-## Endpoints
-
-### POST /auth/register
-Register a new user
-Body: { name: string, email: string }
-Returns: { user, token }
-
-### POST /auth/login
-Login existing user
-Body: { email: string }
-Returns: { user, token }
-
-### POST /scores
-Submit game score (requires auth)
-Body: { moves: number }
-Returns: { message, score }
-
-### GET /leaderboard
-Get leaderboard (public)
-Query params: limit (default: 50), page (default: 1)
-Returns: { leaderboard, pagination }
-
-### GET /user/score
-Get user's best score (requires auth)
-Returns: { hasScore, score?, rank? }
-
-### GET /stats
-Get game statistics (public)
-Returns: { totalUsers, totalScores, averageMoves, etc. }
-
-### GET /health
-Health check endpoint
-Returns: { status, timestamp, uptime }
-*/
