@@ -1,9 +1,12 @@
+<<<<<<< HEAD
 // Enhanced server.js with debugging for MongoDB connection issues
 
+=======
+>>>>>>> f1e3da14 (updated finnaly)
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcryptjs"); // Note: This is not used in the current version, but it's okay to keep.
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
@@ -12,8 +15,13 @@ const app = express();
 // Middleware
 app.use(
   cors({
+<<<<<<< HEAD
     origin: process.env.NODE_ENV === 'production' 
       ? "https://graph-game-frontend.onrender.com" 
+=======
+    origin: process.env.NODE_ENV === 'production'
+      ? "https://graph-game-frontend.onrender.com"
+>>>>>>> f1e3da14 (updated finnaly)
       : ["http://localhost:3001", "http://localhost:3000"], // Allow both ports
   })
 );
@@ -202,12 +210,17 @@ app.post("/api/auth/login", async (req, res) => {
   try {
     console.log("🔑 Login attempt:", req.body);
     
+<<<<<<< HEAD
     const { email } = req.body;
+=======
+    const { email, name } = req.body;
+>>>>>>> f1e3da14 (updated finnaly)
 
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
 
+<<<<<<< HEAD
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       console.log("❌ User not found:", email);
@@ -216,6 +229,35 @@ app.post("/api/auth/login", async (req, res) => {
 
     console.log("✅ User found:", user._id);
 
+=======
+    // Validate email format (same as registration)
+    const iiitdmPattern = /^[a-zA-Z]{2}\d{2}[a-zA-Z]{1}\d{4}@iiitdm\.ac\.in$/;
+    if (!iiitdmPattern.test(email)) {
+      return res.status(400).json({ error: "Email must match IIITDM format: cs23b2007@iiitdm.ac.in" });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      console.log("👤 User not found, creating on login:", email);
+      // Derive a reasonable default name from email if not provided
+      const defaultName = (email.split("@")[0] || "Player")
+        .replace(/[._-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\b\w/g, (c) => c.toUpperCase()) || "Player";
+      const nameToUse = (typeof name === "string" && name.trim().length >= 2) ? name.trim() : defaultName;
+
+      user = new User({
+        name: nameToUse,
+        email: email.toLowerCase(),
+      });
+      await user.save();
+      console.log("✅ User created via login:", user._id);
+    } else {
+      console.log("✅ User found:", user._id);
+    }
+
+>>>>>>> f1e3da14 (updated finnaly)
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET || "your-secret-key",
@@ -535,4 +577,8 @@ app.listen(PORT, () => {
   console.log(`🗄️  MongoDB URI: ${process.env.MONGODB_URI || 'Using default'}`);
 });
 
+<<<<<<< HEAD
 module.exports = app;
+=======
+module.exports = app;
+>>>>>>> f1e3da14 (updated finnaly)

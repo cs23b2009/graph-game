@@ -86,24 +86,63 @@ const GraphSeasonGame = () => {
   const submitScore = async (finalMoves) => {
     if (!currentUser) return;
 
-    try {
+    const postScore = async (token) => {
       const response = await fetch(`${API_BASE}/scores`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${currentUser.token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ moves: finalMoves }),
       });
+      const data = await response.json().catch(() => ({}));
+      return { response, data };
+    };
 
-      const data = await response.json();
+    try {
+      // First attempt with current token
+      let { response, data } = await postScore(currentUser.token);
       if (response.ok) {
-        setSubmitSuccess(data.message);
-        await fetchLeaderboard(); // Refresh leaderboard
-      } else {
-        console.error("Failed to submit score:", data.error);
-        setSubmitSuccess("Score saved locally");
+        setSubmitSuccess(data.message || "Score submitted successfully");
+        await fetchLeaderboard();
+        return;
       }
+
+      // If unauthorized/forbidden, try refreshing token via login and retry once
+      if (response.status === 401 || response.status === 403) {
+        try {
+          const loginRes = await fetch(`${API_BASE}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: currentUser.email,
+              name: currentUser.name,
+            }),
+          });
+          const loginData = await loginRes.json();
+          if (loginRes.ok && loginData.token) {
+            const refreshedUser = { ...loginData.user, token: loginData.token };
+            setCurrentUser(refreshedUser);
+            const retry = await postScore(loginData.token);
+            if (retry.response.ok) {
+              setSubmitSuccess(
+                retry.data.message || "Score submitted successfully"
+              );
+              await fetchLeaderboard();
+              return;
+            } else {
+              console.error("Retry score failed:", retry.data?.error);
+            }
+          } else {
+            console.error("Login refresh failed:", loginData?.error);
+          }
+        } catch (refreshError) {
+          console.error("Token refresh error:", refreshError);
+        }
+      }
+
+      console.error("Failed to submit score:", data?.error);
+      setSubmitSuccess("Score saved locally");
     } catch (error) {
       console.error("Error submitting score:", error);
       setSubmitSuccess("Score saved locally");
@@ -153,7 +192,31 @@ const GraphSeasonGame = () => {
         setAuthForm({ name: "", email: "" });
         await fetchLeaderboard();
       } else {
-        setAuthError(data.error || "Registration failed");
+        // If already registered, attempt login flow automatically
+        const errorMessage = (data && data.error) || "";
+        if (
+          response.status === 400 &&
+          typeof errorMessage === "string" &&
+          errorMessage.toLowerCase().includes("already")
+        ) {
+          const loginRes = await fetch(`${API_BASE}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: authForm.email.toLowerCase() }),
+          });
+          const loginData = await loginRes.json();
+          if (loginRes.ok) {
+            const userWithToken = { ...loginData.user, token: loginData.token };
+            setCurrentUser(userWithToken);
+            setShowAuth(false);
+            setAuthForm({ name: "", email: "" });
+            await fetchLeaderboard();
+          } else {
+            setAuthError(loginData.error || "Login failed");
+          }
+        } else {
+          setAuthError(errorMessage || "Registration failed");
+        }
       }
     } catch (error) {
       console.error("Registration error:", error);
